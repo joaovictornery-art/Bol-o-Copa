@@ -311,7 +311,7 @@ export function App() {
           value={name}
           maxLength={30}
           onChange={(event) => setName(event.target.value)}
-          placeholder="Ex.: Joao da Silva"
+          placeholder="Ex.: Neymar Júnior"
         />
 
         <label className="field-label" htmlFor="goal-scorer">
