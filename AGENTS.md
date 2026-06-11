@@ -10,5 +10,8 @@ When implementing from a selected generated mock, treat that image as the source
 
 - The first game is Brazil vs Morocco.
 - Entry fee is R$ 5.
-- Participant cap is 30 people.
+- There is no participant cap.
 - Bets are public to the churrasco group, including each participant's score prediction.
+- Bet submission requires attaching a Pix receipt.
+- The organizer manually validates receipts.
+- Optional goal scorer predictions add a scoring bonus.

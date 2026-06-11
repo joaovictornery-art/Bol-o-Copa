@@ -1,25 +1,67 @@
 import { useMemo, useState } from "react";
 import {
+  BadgeCheck,
   Check,
   Clipboard,
   Lock,
   Minus,
   Plus,
   Settings,
+  Target,
   Trophy,
+  Upload,
   Users,
 } from "lucide-react";
 
 const ENTRY_FEE = 5;
-const MAX_PARTICIPANTS = 30;
 const PIX_KEY = "bolaochurras2026@pix.com";
 
 const initialParticipants = [
-  { id: 1, name: "Joao da Silva", home: 2, away: 1, paid: true },
-  { id: 2, name: "Rafael Souza", home: 1, away: 0, paid: true },
-  { id: 3, name: "Carlos Eduardo", home: 3, away: 1, paid: true },
-  { id: 4, name: "Bruno Lima", home: 2, away: 2, paid: false },
-  { id: 5, name: "Juliana Costa", home: 1, away: 1, paid: false },
+  {
+    id: 1,
+    name: "Joao da Silva",
+    home: 2,
+    away: 1,
+    scorer: "Vini Jr.",
+    receiptName: "pix-joao.png",
+    confirmed: true,
+  },
+  {
+    id: 2,
+    name: "Rafael Souza",
+    home: 1,
+    away: 0,
+    scorer: "Rodrygo",
+    receiptName: "comprovante-rafael.pdf",
+    confirmed: true,
+  },
+  {
+    id: 3,
+    name: "Carlos Eduardo",
+    home: 3,
+    away: 1,
+    scorer: "Vini Jr.",
+    receiptName: "pix-carlos.jpg",
+    confirmed: true,
+  },
+  {
+    id: 4,
+    name: "Bruno Lima",
+    home: 2,
+    away: 2,
+    scorer: "Hakimi",
+    receiptName: "bruno-pix.jpeg",
+    confirmed: false,
+  },
+  {
+    id: 5,
+    name: "Juliana Costa",
+    home: 1,
+    away: 1,
+    scorer: "",
+    receiptName: "juliana-comprovante.pdf",
+    confirmed: false,
+  },
 ];
 
 function currency(value) {
@@ -27,6 +69,32 @@ function currency(value) {
     style: "currency",
     currency: "BRL",
   }).format(value);
+}
+
+function normalizeText(value) {
+  return value.trim().toLowerCase();
+}
+
+function getOutcome(home, away) {
+  if (home > away) return "home";
+  if (away > home) return "away";
+  return "draw";
+}
+
+function getPoints(participant, officialHome, officialAway, officialScorer) {
+  const exactScore =
+    participant.home === officialHome && participant.away === officialAway;
+  const correctOutcome =
+    getOutcome(participant.home, participant.away) ===
+    getOutcome(officialHome, officialAway);
+  const scorerHit =
+    officialScorer.trim() &&
+    participant.scorer.trim() &&
+    normalizeText(participant.scorer) === normalizeText(officialScorer);
+
+  let points = exactScore ? 3 : correctOutcome ? 1 : 0;
+  if (scorerHit) points += 1;
+  return points;
 }
 
 function Stepper({ label, value, tone, onDecrease, onIncrease }) {
@@ -51,26 +119,37 @@ export function App() {
   const [name, setName] = useState("");
   const [homeScore, setHomeScore] = useState(2);
   const [awayScore, setAwayScore] = useState(1);
+  const [scorer, setScorer] = useState("");
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptInputKey, setReceiptInputKey] = useState(0);
   const [officialHome, setOfficialHome] = useState(2);
   const [officialAway, setOfficialAway] = useState(1);
+  const [officialScorer, setOfficialScorer] = useState("Vini Jr.");
   const [resultPublished, setResultPublished] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const paidParticipants = participants.filter((participant) => participant.paid);
-  const totalPot = paidParticipants.length * ENTRY_FEE;
-  const remainingSlots = MAX_PARTICIPANTS - participants.length;
+  const confirmedParticipants = participants.filter(
+    (participant) => participant.confirmed,
+  );
+  const totalPot = participants.length * ENTRY_FEE;
+  const confirmedPot = confirmedParticipants.length * ENTRY_FEE;
 
-  const winners = useMemo(() => {
+  const ranking = useMemo(() => {
     if (!resultPublished) return [];
 
-    return paidParticipants.filter(
-      (participant) =>
-        participant.home === officialHome && participant.away === officialAway,
-    );
-  }, [officialAway, officialHome, paidParticipants, resultPublished]);
+    return confirmedParticipants
+      .map((participant) => ({
+        ...participant,
+        points: getPoints(participant, officialHome, officialAway, officialScorer),
+      }))
+      .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  }, [confirmedParticipants, officialAway, officialHome, officialScorer, resultPublished]);
 
-  const prizePerWinner = winners.length ? totalPot / winners.length : 0;
-  const isFull = participants.length >= MAX_PARTICIPANTS;
+  const topScore = ranking[0]?.points ?? 0;
+  const winners = ranking.filter(
+    (participant) => participant.points === topScore && topScore > 0,
+  );
+  const prizePerWinner = winners.length ? confirmedPot / winners.length : 0;
 
   function clampScore(value) {
     return Math.max(0, Math.min(12, value));
@@ -80,7 +159,7 @@ export function App() {
     event.preventDefault();
     const trimmedName = name.trim();
 
-    if (!trimmedName || isFull) return;
+    if (!trimmedName || !receiptFile) return;
 
     setParticipants((current) => [
       {
@@ -88,19 +167,24 @@ export function App() {
         name: trimmedName,
         home: homeScore,
         away: awayScore,
-        paid: false,
+        scorer: scorer.trim(),
+        receiptName: receiptFile.name,
+        confirmed: false,
       },
       ...current,
     ]);
 
     setName("");
+    setScorer("");
+    setReceiptFile(null);
+    setReceiptInputKey((value) => value + 1);
   }
 
-  function togglePaid(id) {
+  function toggleConfirmed(id) {
     setParticipants((current) =>
       current.map((participant) =>
         participant.id === id
-          ? { ...participant, paid: !participant.paid }
+          ? { ...participant, confirmed: !participant.confirmed }
           : participant,
       ),
     );
@@ -165,13 +249,11 @@ export function App() {
         </div>
         <div>
           <span>Participantes</span>
-          <strong>
-            {participants.length}/{MAX_PARTICIPANTS}
-          </strong>
+          <strong>{participants.length}</strong>
         </div>
         <div>
-          <span>Vagas</span>
-          <strong>{remainingSlots}</strong>
+          <span>Por aposta</span>
+          <strong>{currency(ENTRY_FEE)}</strong>
         </div>
       </section>
 
@@ -179,7 +261,7 @@ export function App() {
         <div className="section-heading">
           <Clipboard size={21} />
           <div>
-            <span>Pix do organizador</span>
+            <span>Pix copia e cola</span>
             <h2>Pague {currency(ENTRY_FEE)} para entrar</h2>
           </div>
         </div>
@@ -189,7 +271,9 @@ export function App() {
             {copied ? "Copiado" : "Copiar"}
           </button>
         </div>
-        <p>Depois do Pix, o organizador confirma seu pagamento na lista.</p>
+        <p>
+          Para enviar o palpite, anexe o comprovante. O organizador valida depois.
+        </p>
       </section>
 
       <form className="bet-form" onSubmit={handleSubmit}>
@@ -197,7 +281,7 @@ export function App() {
           <Trophy size={21} />
           <div>
             <span>Seu palpite</span>
-            <h2>Qual vai ser o placar?</h2>
+            <h2>Placar + marcador bônus</h2>
           </div>
         </div>
 
@@ -228,14 +312,49 @@ export function App() {
           maxLength={30}
           onChange={(event) => setName(event.target.value)}
           placeholder="Ex.: Joao da Silva"
-          disabled={isFull}
         />
 
-        <button className="primary-button" type="submit" disabled={!name.trim() || isFull}>
-          {isFull ? "Bolão cheio" : "Enviar palpite"}
+        <label className="field-label" htmlFor="goal-scorer">
+          Marcador bônus
+        </label>
+        <div className="bonus-field">
+          <Target size={18} />
+          <input
+            id="goal-scorer"
+            value={scorer}
+            maxLength={30}
+            onChange={(event) => setScorer(event.target.value)}
+            placeholder="Ex.: Vini Jr., Rodrygo, Hakimi"
+          />
+        </div>
+
+        <label className="receipt-drop" htmlFor="receipt-upload">
+          <Upload size={22} />
+          <span>
+            {receiptFile
+              ? receiptFile.name
+              : "Anexar comprovante do Pix para confirmar o envio"}
+          </span>
+        </label>
+        <input
+          key={receiptInputKey}
+          id="receipt-upload"
+          className="file-input"
+          type="file"
+          accept="image/*,.pdf"
+          onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)}
+        />
+
+        <button
+          className="primary-button"
+          type="submit"
+          disabled={!name.trim() || !receiptFile}
+        >
+          Enviar palpite com comprovante
         </button>
         <p className="form-note">
-          Palpites ficam visíveis para todo mundo do churrasco acompanhar.
+          Regra: placar exato vale 3 pts, resultado certo vale 1 pt e marcador
+          certo soma +1 pt.
         </p>
       </form>
 
@@ -248,34 +367,40 @@ export function App() {
               <h2>Participantes</h2>
             </div>
           </div>
-          <strong>{participants.length}/{MAX_PARTICIPANTS}</strong>
-        </div>
-
-        <div className="table-head">
-          <span>Nome</span>
-          <span>Palpite</span>
-          <span>Pix</span>
+          <strong>{participants.length}</strong>
         </div>
 
         <div className="participant-list">
           {participants.map((participant, index) => (
             <div className="participant-row" key={participant.id}>
-              <div className="participant-name">
-                <span>{index + 1}</span>
-                <strong>{participant.name}</strong>
+              <div className="participant-main">
+                <div className="participant-name">
+                  <span>{index + 1}</span>
+                  <strong>{participant.name}</strong>
+                </div>
+                <div className="prediction">
+                  <strong>{participant.home}</strong>
+                  <span>x</span>
+                  <strong className="away">{participant.away}</strong>
+                </div>
+                <button
+                  type="button"
+                  className={`payment-status ${
+                    participant.confirmed ? "paid" : "pending"
+                  }`}
+                  onClick={() => toggleConfirmed(participant.id)}
+                >
+                  {participant.confirmed ? "Validado" : "Comprovante"}
+                </button>
               </div>
-              <div className="prediction">
-                <strong>{participant.home}</strong>
-                <span>x</span>
-                <strong className="away">{participant.away}</strong>
+              <div className="participant-extra">
+                <span>
+                  Gol: <strong>{participant.scorer || "sem bônus"}</strong>
+                </span>
+                <span title={participant.receiptName}>
+                  Pix: <strong>{participant.receiptName}</strong>
+                </span>
               </div>
-              <button
-                type="button"
-                className={`payment-status ${participant.paid ? "paid" : "pending"}`}
-                onClick={() => togglePaid(participant.id)}
-              >
-                {participant.paid ? "Pago" : "Pendente"}
-              </button>
             </div>
           ))}
         </div>
@@ -286,7 +411,7 @@ export function App() {
           <Lock size={21} />
           <div>
             <span>Organizador</span>
-            <h2>Simular resultado</h2>
+            <h2>Resultado e pontuação</h2>
           </div>
         </div>
 
@@ -308,12 +433,26 @@ export function App() {
           />
         </div>
 
+        <label className="field-label" htmlFor="official-scorer">
+          Marcador oficial
+        </label>
+        <div className="bonus-field">
+          <BadgeCheck size={18} />
+          <input
+            id="official-scorer"
+            value={officialScorer}
+            maxLength={30}
+            onChange={(event) => setOfficialScorer(event.target.value)}
+            placeholder="Ex.: Vini Jr."
+          />
+        </div>
+
         <button
           type="button"
           className="secondary-button"
           onClick={() => setResultPublished((value) => !value)}
         >
-          {resultPublished ? "Ocultar vencedores" : "Calcular vencedores"}
+          {resultPublished ? "Ocultar ranking" : "Calcular ranking"}
         </button>
 
         {resultPublished && (
@@ -323,16 +462,21 @@ export function App() {
                 <div>
                   <Check size={18} />
                   <strong>
-                    {winners.length} vencedor{winners.length > 1 ? "es" : ""}
+                    {winners.length} vencedor{winners.length > 1 ? "es" : ""} ·{" "}
+                    {topScore} pts
                   </strong>
                 </div>
                 <p>
                   {winners.map((winner) => winner.name).join(", ")} recebe{" "}
-                  {currency(prizePerWinner)}.
+                  {currency(prizePerWinner)} do prêmio validado de{" "}
+                  {currency(confirmedPot)}.
                 </p>
               </>
             ) : (
-              <p>Ninguém pago acertou o placar exato. Vale combinar a regra do churrasco.</p>
+              <p>
+                Ninguém validado pontuou. Vale combinar se acumula, devolve ou
+                usa desempate.
+              </p>
             )}
           </div>
         )}

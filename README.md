@@ -6,10 +6,18 @@ Protótipo front-end para um bolão privado da Copa do Mundo usado no grupo do c
 
 - Jogo inicial: Brasil x Marrocos.
 - Entrada fixa: R$ 5.
-- Limite: 30 participantes.
+- Sem limite de participantes.
 - Palpites públicos para o grupo acompanhar.
-- Confirmação de Pix feita manualmente pelo organizador.
-- Simulação local de resultado e cálculo de vencedores.
+- O participante precisa anexar comprovante do Pix para enviar o palpite.
+- Confirmação do comprovante feita manualmente pelo organizador.
+- Marcador de gol opcional como bônus de pontuação.
+- Simulação local de resultado, pontuação e cálculo de vencedores.
+
+## Regra de Pontuação
+
+- Placar exato: 3 pontos.
+- Resultado certo sem placar exato: 1 ponto.
+- Marcador correto: +1 ponto.
 
 ## Rodar localmente
 
