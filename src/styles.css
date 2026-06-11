@@ -526,42 +526,6 @@ input:focus {
   padding: 0;
 }
 
-.receipt-drop {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 58px;
-  margin-top: 16px;
-  border: 1px dashed #b59d5b;
-  border-radius: 16px;
-  background: rgba(255, 248, 229, 0.72);
-  color: #2f322a;
-  font-weight: 800;
-  padding: 12px 14px;
-  cursor: pointer;
-}
-
-.receipt-drop svg {
-  flex: 0 0 auto;
-  color: #0a7430;
-}
-
-.receipt-drop span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-}
-
 .primary-button,
 .secondary-button {
   width: 100%;

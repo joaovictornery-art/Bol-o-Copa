@@ -9,7 +9,7 @@ Prototype URL: http://127.0.0.1:5173
 Verified:
 - Production build completes successfully with `npm.cmd run build`.
 - The implemented UI uses the agreed R$ 5 entry fee and no participant cap.
-- The front end includes match summary, Pix copy block, receipt attachment, score steppers, optional scorer prediction, participant list, receipt validation toggles, prize total, and organizer result simulation.
+- The front end includes match summary, Pix copy block, score steppers, optional scorer prediction, participant list, manual payment validation toggles, prize total, and organizer result simulation.
 
 Blocked:
 - In-app browser access to `http://127.0.0.1:5173` was blocked by enterprise network policy.
@@ -19,4 +19,4 @@ Follow-up QA needed:
 - Open the local URL and check the 390px mobile layout.
 - Confirm that long names, Pix key text, and participant rows do not clip.
 - Submit a test participant, toggle payment status, and calculate winners.
-- Confirm that receipt file names and scorer names remain readable on mobile.
+- Confirm that scorer names and payment status remain readable on mobile.

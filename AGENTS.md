@@ -12,8 +12,9 @@ When implementing from a selected generated mock, treat that image as the source
 - Entry fee is R$ 5.
 - There is no participant cap.
 - Bets are public to the churrasco group, including each participant's score prediction.
-- Bet submission requires attaching a Pix receipt.
-- The organizer manually validates receipts.
+- Bet submission does not require receipt upload.
+- Participants send Pix receipts through WhatsApp outside the app.
+- The organizer manually marks bets as paid/validated in the app.
 - Optional goal scorer predictions add a scoring bonus.
-- The app should support multiple pools/games, each with its own link, bets, receipts, and result.
-- Firebase work must be cost-cautious: call out Blaze/billing risk, budget alerts not being hard caps, upload limits, security rules, and usage monitoring.
+- The app should support multiple pools/games, each with its own link, bets, payment status, and result.
+- Firebase work must be cost-cautious: call out Blaze/billing risk, budget alerts not being hard caps, security rules, usage monitoring, and upload limits if uploads return later.

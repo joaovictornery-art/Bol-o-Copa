@@ -10,7 +10,6 @@ import {
   Settings,
   Target,
   Trophy,
-  Upload,
   Users,
 } from "lucide-react";
 import { isFirebaseConfigured } from "./firebase";
@@ -24,7 +23,6 @@ import {
 } from "./poolService";
 
 const PIX_KEY = "bolaochurras2026@pix.com";
-const MAX_RECEIPT_SIZE = 2 * 1024 * 1024;
 const DEFAULT_POOL_ID = "brasil-marrocos-2026-06-13";
 
 const demoPools = [
@@ -64,7 +62,6 @@ const demoBets = {
       home: 2,
       away: 1,
       scorer: "Vini Jr.",
-      receiptName: "pix-joao.png",
       confirmed: true,
     },
     {
@@ -73,7 +70,6 @@ const demoBets = {
       home: 1,
       away: 0,
       scorer: "Rodrygo",
-      receiptName: "comprovante-rafael.pdf",
       confirmed: true,
     },
     {
@@ -82,7 +78,6 @@ const demoBets = {
       home: 3,
       away: 1,
       scorer: "Vini Jr.",
-      receiptName: "pix-carlos.jpg",
       confirmed: true,
     },
     {
@@ -91,7 +86,6 @@ const demoBets = {
       home: 2,
       away: 2,
       scorer: "Hakimi",
-      receiptName: "bruno-pix.jpeg",
       confirmed: false,
     },
   ],
@@ -102,7 +96,6 @@ const demoBets = {
       home: 1,
       away: 1,
       scorer: "Messi",
-      receiptName: "pix-neymar.png",
       confirmed: true,
     },
   ],
@@ -254,8 +247,6 @@ export function App() {
   const [homeScore, setHomeScore] = useState(2);
   const [awayScore, setAwayScore] = useState(1);
   const [scorer, setScorer] = useState("");
-  const [receiptFile, setReceiptFile] = useState(null);
-  const [receiptInputKey, setReceiptInputKey] = useState(0);
   const [officialHome, setOfficialHome] = useState(2);
   const [officialAway, setOfficialAway] = useState(1);
   const [officialScorer, setOfficialScorer] = useState("Vini Jr.");
@@ -394,16 +385,6 @@ export function App() {
       return;
     }
 
-    if (!receiptFile) {
-      setStatusMessage("Anexe o comprovante do Pix antes de enviar.");
-      return;
-    }
-
-    if (receiptFile.size > MAX_RECEIPT_SIZE) {
-      setStatusMessage("Comprovante muito grande. Use arquivo de até 2 MB.");
-      return;
-    }
-
     const bet = {
       name: trimmedName,
       home: homeScore,
@@ -416,7 +397,7 @@ export function App() {
 
     try {
       if (isFirebaseConfigured) {
-        await submitBet(poolId, bet, receiptFile);
+        await submitBet(poolId, bet);
       } else {
         setBetsByPool((current) => ({
           ...current,
@@ -424,7 +405,6 @@ export function App() {
             {
               id: Date.now(),
               ...bet,
-              receiptName: receiptFile.name,
               confirmed: false,
             },
             ...(current[poolId] || []),
@@ -434,9 +414,7 @@ export function App() {
 
       setName("");
       setScorer("");
-      setReceiptFile(null);
-      setReceiptInputKey((value) => value + 1);
-      setStatusMessage("Palpite enviado. Agora é só o organizador validar.");
+      setStatusMessage("Palpite enviado. Mande o comprovante no WhatsApp e aguarde a marcação de pago.");
     } catch (error) {
       setStatusMessage(`Não consegui enviar o palpite: ${error.message}`);
     } finally {
@@ -604,7 +582,7 @@ export function App() {
           </button>
         </div>
         <p>
-          Para enviar o palpite, anexe o comprovante. Limite do arquivo: 2 MB.
+          Faça o Pix, envie o comprovante no WhatsApp e o organizador marca como pago.
         </p>
       </section>
 
@@ -660,29 +638,12 @@ export function App() {
           />
         </div>
 
-        <label className="receipt-drop" htmlFor="receipt-upload">
-          <Upload size={22} />
-          <span>
-            {receiptFile
-              ? receiptFile.name
-              : "Anexar comprovante do Pix para confirmar o envio"}
-          </span>
-        </label>
-        <input
-          key={receiptInputKey}
-          id="receipt-upload"
-          className="file-input"
-          type="file"
-          accept="image/*,.pdf"
-          onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)}
-        />
-
         <button
           className="primary-button"
           type="submit"
-          disabled={!name.trim() || !receiptFile || isBusy}
+          disabled={!name.trim() || isBusy}
         >
-          {isBusy ? "Enviando..." : "Enviar palpite com comprovante"}
+          {isBusy ? "Enviando..." : "Enviar palpite"}
         </button>
         <p className="form-note">
           Regra: placar exato vale 3 pts, resultado certo vale 1 pt e marcador
@@ -735,8 +696,9 @@ export function App() {
                 <span>
                   Gol: <strong>{participant.scorer || "sem bônus"}</strong>
                 </span>
-                <span title={participant.receiptName}>
-                  Pix: <strong>{participant.receiptName}</strong>
+                <span>
+                  Pagamento:{" "}
+                  <strong>{participant.confirmed ? "pago" : "aguardando WhatsApp"}</strong>
                 </span>
               </div>
             </div>
@@ -819,8 +781,9 @@ export function App() {
       <section className="cost-note" aria-label="Cuidados com Firebase">
         <strong>{isFirebaseConfigured ? "Firebase conectado" : "Modo demo local"}</strong>
         <p>
-          Guardrail de custo: uploads limitados a 2 MB no app e nas regras.
-          Antes de publicar com Storage, revisar Blaze, orçamento e uso no console.
+          Guardrail de custo: sem upload de comprovantes nesta versão. Firebase fica
+          limitado a Auth anônima, Firestore e Hosting; revisar Blaze antes de
+          ativar qualquer Storage no futuro.
         </p>
       </section>
     </main>

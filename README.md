@@ -9,12 +9,12 @@ App para criar bolões rápidos da Copa do Mundo no grupo do churrasco.
 - Entrada sugerida: R$ 5.
 - Sem limite de participantes.
 - Palpites públicos para o grupo acompanhar.
-- O participante precisa anexar comprovante do Pix para enviar o palpite.
-- Confirmação do comprovante feita manualmente pelo organizador.
+- O participante envia o comprovante pelo WhatsApp.
+- Pagamento marcado manualmente pelo organizador no painel/lista.
 - Marcador de gol opcional como bônus de pontuação.
 - Simulação local de resultado, pontuação e cálculo de vencedores.
 - Modo demo local quando Firebase não está configurado.
-- Modo Firebase com Firestore, Storage e Auth anônima quando `.env` está configurado.
+- Modo Firebase com Firestore e Auth anônima quando `.env` está configurado.
 
 ## Regra de Pontuação
 
@@ -39,4 +39,4 @@ npm run build
 
 Leia [docs/firebase-setup.md](docs/firebase-setup.md) antes de ativar Firebase.
 
-Guardrail importante: budget alert ajuda a monitorar, mas não é limite rígido de cobrança. Para comprovantes, o app limita upload a 2 MB no front e nas regras de Storage.
+Guardrail importante: budget alert ajuda a monitorar, mas não é limite rígido de cobrança. Esta versão não usa Storage nem upload de comprovantes, reduzindo o risco de custo.

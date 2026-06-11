@@ -6,20 +6,9 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { ref, uploadBytes } from "firebase/storage";
-import { db, storage, waitForAuthUser } from "./firebase";
-
-function cleanFileName(fileName) {
-  return fileName
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9._-]/g, "-")
-    .replace(/-+/g, "-")
-    .toLowerCase();
-}
+import { db, waitForAuthUser } from "./firebase";
 
 export function subscribePools(onNext, onError) {
   const poolsQuery = query(collection(db, "pools"), orderBy("createdAt", "desc"));
@@ -64,27 +53,12 @@ export async function createPool(pool) {
   return docRef.id;
 }
 
-export async function submitBet(poolId, bet, receiptFile) {
+export async function submitBet(poolId, bet) {
   const user = await waitForAuthUser();
-  const betRef = doc(collection(db, "pools", poolId, "bets"));
-  const receiptPath = `receipts/${poolId}/${user.uid}/${betRef.id}-${Date.now()}-${cleanFileName(
-    receiptFile.name,
-  )}`;
 
-  await uploadBytes(ref(storage, receiptPath), receiptFile, {
-    contentType: receiptFile.type || "application/octet-stream",
-    customMetadata: {
-      poolId,
-      betId: betRef.id,
-      ownerUid: user.uid,
-    },
-  });
-
-  await setDoc(betRef, {
+  await addDoc(collection(db, "pools", poolId, "bets"), {
     ...bet,
     ownerUid: user.uid,
-    receiptName: receiptFile.name,
-    receiptPath,
     confirmed: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
