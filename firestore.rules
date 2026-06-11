@@ -1,0 +1,102 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function validText(value, maxSize) {
+      return value is string && value.size() > 0 && value.size() <= maxSize;
+    }
+
+    function validOptionalText(value, maxSize) {
+      return value == null || value == "" || validText(value, maxSize);
+    }
+
+    function validScore(value) {
+      return value is int && value >= 0 && value <= 12;
+    }
+
+    function validPoolCreate() {
+      return request.resource.data.keys().hasOnly([
+        "homeTeam",
+        "awayTeam",
+        "matchLabel",
+        "phase",
+        "entryFee",
+        "pixKey",
+        "officialHome",
+        "officialAway",
+        "officialScorer",
+        "resultPublished",
+        "createdAt",
+        "updatedAt"
+      ])
+      && validText(request.resource.data.homeTeam, 40)
+      && validText(request.resource.data.awayTeam, 40)
+      && validText(request.resource.data.matchLabel, 80)
+      && validOptionalText(request.resource.data.phase, 60)
+      && request.resource.data.entryFee is number
+      && request.resource.data.entryFee >= 1
+      && request.resource.data.entryFee <= 20
+      && validText(request.resource.data.pixKey, 120)
+      && validScore(request.resource.data.officialHome)
+      && validScore(request.resource.data.officialAway)
+      && validOptionalText(request.resource.data.officialScorer, 40)
+      && request.resource.data.resultPublished is bool;
+    }
+
+    function validBetCreate(poolId) {
+      return request.resource.data.keys().hasOnly([
+        "name",
+        "home",
+        "away",
+        "scorer",
+        "ownerUid",
+        "receiptName",
+        "receiptPath",
+        "confirmed",
+        "createdAt",
+        "updatedAt"
+      ])
+      && validText(request.resource.data.name, 30)
+      && validScore(request.resource.data.home)
+      && validScore(request.resource.data.away)
+      && validOptionalText(request.resource.data.scorer, 30)
+      && request.resource.data.ownerUid == request.auth.uid
+      && validText(request.resource.data.receiptName, 120)
+      && request.resource.data.receiptPath.matches(
+        "^receipts/" + poolId + "/" + request.auth.uid + "/.+$"
+      )
+      && request.resource.data.confirmed == false;
+    }
+
+    match /admins/{userId} {
+      allow read: if isAdmin() && userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /pools/{poolId} {
+      allow read: if true;
+      allow create: if isAdmin() && validPoolCreate();
+      allow update, delete: if isAdmin();
+
+      match /bets/{betId} {
+        allow read: if true;
+        allow create: if signedIn() && validBetCreate(poolId);
+        allow update: if isAdmin()
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            "confirmed",
+            "updatedAt"
+          ]);
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}

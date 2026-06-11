@@ -15,3 +15,5 @@ When implementing from a selected generated mock, treat that image as the source
 - Bet submission requires attaching a Pix receipt.
 - The organizer manually validates receipts.
 - Optional goal scorer predictions add a scoring bonus.
+- The app should support multiple pools/games, each with its own link, bets, receipts, and result.
+- Firebase work must be cost-cautious: call out Blaze/billing risk, budget alerts not being hard caps, upload limits, security rules, and usage monitoring.

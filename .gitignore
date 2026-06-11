@@ -3,4 +3,4 @@ dist/
 .npm-cache/
 .env
 .env.*
-
+!.env.example

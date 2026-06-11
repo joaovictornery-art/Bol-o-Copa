@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
   Check,
   Clipboard,
+  Link,
   Lock,
   Minus,
   Plus,
@@ -12,67 +13,112 @@ import {
   Upload,
   Users,
 } from "lucide-react";
+import { isFirebaseConfigured } from "./firebase";
+import {
+  createPool,
+  submitBet,
+  subscribeBets,
+  subscribePools,
+  updateBetConfirmed,
+  updatePoolResult,
+} from "./poolService";
 
-const ENTRY_FEE = 5;
 const PIX_KEY = "bolaochurras2026@pix.com";
+const MAX_RECEIPT_SIZE = 2 * 1024 * 1024;
+const DEFAULT_POOL_ID = "brasil-marrocos-2026-06-13";
 
-const initialParticipants = [
+const demoPools = [
   {
-    id: 1,
-    name: "Joao da Silva",
-    home: 2,
-    away: 1,
-    scorer: "Vini Jr.",
-    receiptName: "pix-joao.png",
-    confirmed: true,
+    id: DEFAULT_POOL_ID,
+    homeTeam: "Brasil",
+    awayTeam: "Marrocos",
+    matchLabel: "Sábado, 13 jun 2026 · 19:00 BRT",
+    phase: "Copa do Mundo 2026",
+    entryFee: 5,
+    pixKey: PIX_KEY,
+    officialHome: 2,
+    officialAway: 1,
+    officialScorer: "Vini Jr.",
+    resultPublished: false,
   },
   {
-    id: 2,
-    name: "Rafael Souza",
-    home: 1,
-    away: 0,
-    scorer: "Rodrygo",
-    receiptName: "comprovante-rafael.pdf",
-    confirmed: true,
-  },
-  {
-    id: 3,
-    name: "Carlos Eduardo",
-    home: 3,
-    away: 1,
-    scorer: "Vini Jr.",
-    receiptName: "pix-carlos.jpg",
-    confirmed: true,
-  },
-  {
-    id: 4,
-    name: "Bruno Lima",
-    home: 2,
-    away: 2,
-    scorer: "Hakimi",
-    receiptName: "bruno-pix.jpeg",
-    confirmed: false,
-  },
-  {
-    id: 5,
-    name: "Juliana Costa",
-    home: 1,
-    away: 1,
-    scorer: "",
-    receiptName: "juliana-comprovante.pdf",
-    confirmed: false,
+    id: "argentina-mexico-demo",
+    homeTeam: "Argentina",
+    awayTeam: "México",
+    matchLabel: "Domingo, 14 jun 2026 · 16:00 BRT",
+    phase: "Bolão teste",
+    entryFee: 5,
+    pixKey: PIX_KEY,
+    officialHome: 0,
+    officialAway: 0,
+    officialScorer: "",
+    resultPublished: false,
   },
 ];
+
+const demoBets = {
+  [DEFAULT_POOL_ID]: [
+    {
+      id: 1,
+      name: "Joao da Silva",
+      home: 2,
+      away: 1,
+      scorer: "Vini Jr.",
+      receiptName: "pix-joao.png",
+      confirmed: true,
+    },
+    {
+      id: 2,
+      name: "Rafael Souza",
+      home: 1,
+      away: 0,
+      scorer: "Rodrygo",
+      receiptName: "comprovante-rafael.pdf",
+      confirmed: true,
+    },
+    {
+      id: 3,
+      name: "Carlos Eduardo",
+      home: 3,
+      away: 1,
+      scorer: "Vini Jr.",
+      receiptName: "pix-carlos.jpg",
+      confirmed: true,
+    },
+    {
+      id: 4,
+      name: "Bruno Lima",
+      home: 2,
+      away: 2,
+      scorer: "Hakimi",
+      receiptName: "bruno-pix.jpeg",
+      confirmed: false,
+    },
+  ],
+  "argentina-mexico-demo": [
+    {
+      id: 11,
+      name: "Neymar Júnior",
+      home: 1,
+      away: 1,
+      scorer: "Messi",
+      receiptName: "pix-neymar.png",
+      confirmed: true,
+    },
+  ],
+};
 
 function currency(value) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(value);
+  }).format(value || 0);
 }
 
 function normalizeText(value) {
-  return value.trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function getOutcome(home, away) {
@@ -88,13 +134,23 @@ function getPoints(participant, officialHome, officialAway, officialScorer) {
     getOutcome(participant.home, participant.away) ===
     getOutcome(officialHome, officialAway);
   const scorerHit =
-    officialScorer.trim() &&
-    participant.scorer.trim() &&
+    officialScorer?.trim() &&
+    participant.scorer?.trim() &&
     normalizeText(participant.scorer) === normalizeText(officialScorer);
 
   let points = exactScore ? 3 : correctOutcome ? 1 : 0;
   if (scorerHit) points += 1;
   return points;
+}
+
+function getInitials(teamName) {
+  return teamName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
 function Stepper({ label, value, tone, onDecrease, onIncrease }) {
@@ -114,8 +170,86 @@ function Stepper({ label, value, tone, onDecrease, onIncrease }) {
   );
 }
 
+function PoolBadge({ team, tone }) {
+  return (
+    <div className={`pool-badge ${tone}`} aria-hidden="true">
+      {getInitials(team)}
+    </div>
+  );
+}
+
+function NewPoolForm({ onCreate, disabled }) {
+  const [homeTeam, setHomeTeam] = useState("Brasil");
+  const [awayTeam, setAwayTeam] = useState("Marrocos");
+  const [matchLabel, setMatchLabel] = useState("Sábado, 13 jun 2026 · 19:00 BRT");
+  const [phase, setPhase] = useState("Copa do Mundo 2026");
+  const [entryFee, setEntryFee] = useState(5);
+  const [pixKey, setPixKey] = useState(PIX_KEY);
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    onCreate({
+      homeTeam: homeTeam.trim(),
+      awayTeam: awayTeam.trim(),
+      matchLabel: matchLabel.trim(),
+      phase: phase.trim(),
+      entryFee: Number(entryFee) || 5,
+      pixKey: pixKey.trim(),
+    });
+  }
+
+  return (
+    <form className="new-pool-form" onSubmit={handleSubmit}>
+      <div className="two-column">
+        <label>
+          <span>Time A</span>
+          <input value={homeTeam} onChange={(event) => setHomeTeam(event.target.value)} />
+        </label>
+        <label>
+          <span>Time B</span>
+          <input value={awayTeam} onChange={(event) => setAwayTeam(event.target.value)} />
+        </label>
+      </div>
+      <label>
+        <span>Data e horário</span>
+        <input
+          value={matchLabel}
+          onChange={(event) => setMatchLabel(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>Competição ou contexto</span>
+        <input value={phase} onChange={(event) => setPhase(event.target.value)} />
+      </label>
+      <div className="two-column">
+        <label>
+          <span>Aposta</span>
+          <input
+            min="1"
+            max="20"
+            type="number"
+            value={entryFee}
+            onChange={(event) => setEntryFee(event.target.value)}
+          />
+        </label>
+        <label>
+          <span>Pix</span>
+          <input value={pixKey} onChange={(event) => setPixKey(event.target.value)} />
+        </label>
+      </div>
+      <button type="submit" className="secondary-button compact" disabled={disabled}>
+        Criar bolão
+      </button>
+    </form>
+  );
+}
+
 export function App() {
-  const [participants, setParticipants] = useState(initialParticipants);
+  const [pools, setPools] = useState(demoPools);
+  const [betsByPool, setBetsByPool] = useState(demoBets);
+  const [selectedPoolId, setSelectedPoolId] = useState(() => {
+    return new URLSearchParams(window.location.search).get("bolao") || DEFAULT_POOL_ID;
+  });
   const [name, setName] = useState("");
   const [homeScore, setHomeScore] = useState(2);
   const [awayScore, setAwayScore] = useState(1);
@@ -125,14 +259,25 @@ export function App() {
   const [officialHome, setOfficialHome] = useState(2);
   const [officialAway, setOfficialAway] = useState(1);
   const [officialScorer, setOfficialScorer] = useState("Vini Jr.");
-  const [resultPublished, setResultPublished] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [showCreatePool, setShowCreatePool] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
 
-  const confirmedParticipants = participants.filter(
-    (participant) => participant.confirmed,
-  );
-  const totalPot = participants.length * ENTRY_FEE;
-  const confirmedPot = confirmedParticipants.length * ENTRY_FEE;
+  const activePool = pools.find((pool) => pool.id === selectedPoolId) || pools[0];
+  const poolId = activePool?.id;
+  const bets = betsByPool[poolId] || [];
+  const entryFee = Number(activePool?.entryFee || 5);
+  const confirmedParticipants = bets.filter((participant) => participant.confirmed);
+  const totalPot = bets.length * entryFee;
+  const confirmedPot = confirmedParticipants.length * entryFee;
+  const resultPublished = Boolean(activePool?.resultPublished);
+
+  const poolLink = useMemo(() => {
+    if (!poolId) return "";
+    return `${window.location.origin}${window.location.pathname}?bolao=${poolId}`;
+  }, [poolId]);
 
   const ranking = useMemo(() => {
     if (!resultPublished) return [];
@@ -143,7 +288,13 @@ export function App() {
         points: getPoints(participant, officialHome, officialAway, officialScorer),
       }))
       .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
-  }, [confirmedParticipants, officialAway, officialHome, officialScorer, resultPublished]);
+  }, [
+    confirmedParticipants,
+    officialAway,
+    officialHome,
+    officialScorer,
+    resultPublished,
+  ]);
 
   const topScore = ranking[0]?.points ?? 0;
   const winners = ranking.filter(
@@ -151,49 +302,199 @@ export function App() {
   );
   const prizePerWinner = winners.length ? confirmedPot / winners.length : 0;
 
-  function clampScore(value) {
-    return Math.max(0, Math.min(12, value));
-  }
+  useEffect(() => {
+    if (!isFirebaseConfigured) return undefined;
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    const trimmedName = name.trim();
-
-    if (!trimmedName || !receiptFile) return;
-
-    setParticipants((current) => [
-      {
-        id: Date.now(),
-        name: trimmedName,
-        home: homeScore,
-        away: awayScore,
-        scorer: scorer.trim(),
-        receiptName: receiptFile.name,
-        confirmed: false,
+    return subscribePools(
+      (firebasePools) => {
+        setPools(firebasePools.length ? firebasePools : demoPools);
+        if (firebasePools.length && !firebasePools.some((pool) => pool.id === selectedPoolId)) {
+          setSelectedPoolId(firebasePools[0].id);
+        }
       },
-      ...current,
-    ]);
+      (error) => setStatusMessage(`Firebase: ${error.message}`),
+    );
+  }, [selectedPoolId]);
 
-    setName("");
-    setScorer("");
-    setReceiptFile(null);
-    setReceiptInputKey((value) => value + 1);
-  }
+  useEffect(() => {
+    if (!isFirebaseConfigured || !poolId) return undefined;
 
-  function toggleConfirmed(id) {
-    setParticipants((current) =>
-      current.map((participant) =>
-        participant.id === id
-          ? { ...participant, confirmed: !participant.confirmed }
-          : participant,
+    return subscribeBets(
+      poolId,
+      (firebaseBets) =>
+        setBetsByPool((current) => ({ ...current, [poolId]: firebaseBets })),
+      (error) => setStatusMessage(`Firebase: ${error.message}`),
+    );
+  }, [poolId]);
+
+  useEffect(() => {
+    if (!activePool) return;
+
+    setOfficialHome(Number(activePool.officialHome || 0));
+    setOfficialAway(Number(activePool.officialAway || 0));
+    setOfficialScorer(activePool.officialScorer || "");
+
+    window.history.replaceState(null, "", `?bolao=${activePool.id}`);
+  }, [activePool]);
+
+  function updateLocalPool(poolIdToUpdate, changes) {
+    setPools((current) =>
+      current.map((pool) =>
+        pool.id === poolIdToUpdate ? { ...pool, ...changes } : pool,
       ),
     );
   }
 
-  async function copyPixKey() {
-    await navigator.clipboard.writeText(PIX_KEY);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+  function clampScore(value) {
+    return Math.max(0, Math.min(12, value));
+  }
+
+  async function handleCreatePool(pool) {
+    if (!pool.homeTeam || !pool.awayTeam || !pool.pixKey) {
+      setStatusMessage("Preencha os times e o Pix para criar o bolão.");
+      return;
+    }
+
+    setIsBusy(true);
+    setStatusMessage("");
+
+    try {
+      if (isFirebaseConfigured) {
+        const newPoolId = await createPool(pool);
+        setSelectedPoolId(newPoolId);
+      } else {
+        const newPoolId = `${pool.homeTeam}-${pool.awayTeam}-${Date.now()}`
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+
+        setPools((current) => [
+          { id: newPoolId, ...pool, resultPublished: false },
+          ...current,
+        ]);
+        setBetsByPool((current) => ({ ...current, [newPoolId]: [] }));
+        setSelectedPoolId(newPoolId);
+      }
+
+      setShowCreatePool(false);
+      setStatusMessage("Bolão criado.");
+    } catch (error) {
+      setStatusMessage(`Não consegui criar o bolão: ${error.message}`);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      setStatusMessage("Informe seu nome para entrar no bolão.");
+      return;
+    }
+
+    if (!receiptFile) {
+      setStatusMessage("Anexe o comprovante do Pix antes de enviar.");
+      return;
+    }
+
+    if (receiptFile.size > MAX_RECEIPT_SIZE) {
+      setStatusMessage("Comprovante muito grande. Use arquivo de até 2 MB.");
+      return;
+    }
+
+    const bet = {
+      name: trimmedName,
+      home: homeScore,
+      away: awayScore,
+      scorer: scorer.trim(),
+    };
+
+    setIsBusy(true);
+    setStatusMessage("");
+
+    try {
+      if (isFirebaseConfigured) {
+        await submitBet(poolId, bet, receiptFile);
+      } else {
+        setBetsByPool((current) => ({
+          ...current,
+          [poolId]: [
+            {
+              id: Date.now(),
+              ...bet,
+              receiptName: receiptFile.name,
+              confirmed: false,
+            },
+            ...(current[poolId] || []),
+          ],
+        }));
+      }
+
+      setName("");
+      setScorer("");
+      setReceiptFile(null);
+      setReceiptInputKey((value) => value + 1);
+      setStatusMessage("Palpite enviado. Agora é só o organizador validar.");
+    } catch (error) {
+      setStatusMessage(`Não consegui enviar o palpite: ${error.message}`);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function toggleConfirmed(betId, confirmed) {
+    setStatusMessage("");
+
+    try {
+      if (isFirebaseConfigured) {
+        await updateBetConfirmed(poolId, betId, !confirmed);
+      } else {
+        setBetsByPool((current) => ({
+          ...current,
+          [poolId]: (current[poolId] || []).map((participant) =>
+            participant.id === betId
+              ? { ...participant, confirmed: !participant.confirmed }
+              : participant,
+          ),
+        }));
+      }
+    } catch (error) {
+      setStatusMessage(`Ação de organizador bloqueada: ${error.message}`);
+    }
+  }
+
+  async function toggleResultPublished() {
+    const nextPublished = !resultPublished;
+    const result = {
+      officialHome,
+      officialAway,
+      officialScorer,
+      resultPublished: nextPublished,
+    };
+
+    setStatusMessage("");
+
+    try {
+      if (isFirebaseConfigured) {
+        await updatePoolResult(poolId, result);
+      } else {
+        updateLocalPool(poolId, result);
+      }
+    } catch (error) {
+      setStatusMessage(`Ação de organizador bloqueada: ${error.message}`);
+    }
+  }
+
+  async function copyText(value, onCopied) {
+    await navigator.clipboard.writeText(value);
+    onCopied(true);
+    window.setTimeout(() => onCopied(false), 1600);
+  }
+
+  if (!activePool) {
+    return <main className="app-shell">Carregando bolões...</main>;
   }
 
   return (
@@ -208,38 +509,62 @@ export function App() {
           </div>
           <div className="entry-pill">
             <span>Entrada</span>
-            <strong>{currency(ENTRY_FEE)}</strong>
+            <strong>{currency(entryFee)}</strong>
           </div>
         </div>
 
         <div className="headline">
-          <p>Copa do Mundo 2026</p>
+          <p>{activePool.phase || "Bolão entre amigos"}</p>
           <h1>Bolão da Churrascada</h1>
         </div>
 
-        <div className="matchup" aria-label="Brasil contra Marrocos">
+        <div className="pool-switcher">
+          <div className="section-heading inline">
+            <Users size={19} />
+            <div>
+              <span>Bolões ativos</span>
+              <h2>Escolha o jogo</h2>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => setShowCreatePool((value) => !value)}
+          >
+            {showCreatePool ? "Fechar" : "Novo"}
+          </button>
+        </div>
+
+        <div className="pool-tabs" aria-label="Selecionar bolão">
+          {pools.map((pool) => (
+            <button
+              type="button"
+              key={pool.id}
+              className={pool.id === poolId ? "active" : ""}
+              onClick={() => setSelectedPoolId(pool.id)}
+            >
+              {pool.homeTeam} x {pool.awayTeam}
+            </button>
+          ))}
+        </div>
+
+        {showCreatePool && (
+          <NewPoolForm onCreate={handleCreatePool} disabled={isBusy} />
+        )}
+
+        <div className="matchup" aria-label={`${activePool.homeTeam} contra ${activePool.awayTeam}`}>
           <div className="team">
-            <img
-              src="https://flagcdn.com/w160/br.png"
-              alt="Bandeira do Brasil"
-              width="88"
-              height="58"
-            />
-            <strong>Brasil</strong>
+            <PoolBadge team={activePool.homeTeam} tone="home" />
+            <strong>{activePool.homeTeam}</strong>
           </div>
           <span className="versus">VS</span>
           <div className="team">
-            <img
-              src="https://flagcdn.com/w160/ma.png"
-              alt="Bandeira do Marrocos"
-              width="88"
-              height="58"
-            />
-            <strong>Marrocos</strong>
+            <PoolBadge team={activePool.awayTeam} tone="away" />
+            <strong>{activePool.awayTeam}</strong>
           </div>
         </div>
 
-        <p className="match-date">Sábado, 13 jun 2026 · 19:00 BRT</p>
+        <p className="match-date">{activePool.matchLabel}</p>
       </section>
 
       <section className="summary-band" aria-label="Resumo do premio">
@@ -249,11 +574,11 @@ export function App() {
         </div>
         <div>
           <span>Participantes</span>
-          <strong>{participants.length}</strong>
+          <strong>{bets.length}</strong>
         </div>
         <div>
-          <span>Por aposta</span>
-          <strong>{currency(ENTRY_FEE)}</strong>
+          <span>Validados</span>
+          <strong>{confirmedParticipants.length}</strong>
         </div>
       </section>
 
@@ -262,17 +587,24 @@ export function App() {
           <Clipboard size={21} />
           <div>
             <span>Pix copia e cola</span>
-            <h2>Pague {currency(ENTRY_FEE)} para entrar</h2>
+            <h2>Pague {currency(entryFee)} para entrar</h2>
           </div>
         </div>
         <div className="pix-copy">
-          <code>{PIX_KEY}</code>
-          <button type="button" onClick={copyPixKey}>
+          <code>{activePool.pixKey}</code>
+          <button type="button" onClick={() => copyText(activePool.pixKey, setCopied)}>
             {copied ? "Copiado" : "Copiar"}
           </button>
         </div>
+        <div className="link-copy">
+          <Link size={16} />
+          <span>Link do bolão</span>
+          <button type="button" onClick={() => copyText(poolLink, setLinkCopied)}>
+            {linkCopied ? "Copiado" : "Copiar link"}
+          </button>
+        </div>
         <p>
-          Para enviar o palpite, anexe o comprovante. O organizador valida depois.
+          Para enviar o palpite, anexe o comprovante. Limite do arquivo: 2 MB.
         </p>
       </section>
 
@@ -287,7 +619,7 @@ export function App() {
 
         <div className="score-row">
           <Stepper
-            label="Brasil"
+            label={activePool.homeTeam}
             value={homeScore}
             tone="green"
             onDecrease={() => setHomeScore((value) => clampScore(value - 1))}
@@ -295,7 +627,7 @@ export function App() {
           />
           <span className="score-x">x</span>
           <Stepper
-            label="Marrocos"
+            label={activePool.awayTeam}
             value={awayScore}
             tone="red"
             onDecrease={() => setAwayScore((value) => clampScore(value - 1))}
@@ -324,7 +656,7 @@ export function App() {
             value={scorer}
             maxLength={30}
             onChange={(event) => setScorer(event.target.value)}
-            placeholder="Ex.: Vini Jr., Rodrygo, Hakimi"
+            placeholder={`Ex.: jogador do ${activePool.homeTeam}`}
           />
         </div>
 
@@ -348,15 +680,17 @@ export function App() {
         <button
           className="primary-button"
           type="submit"
-          disabled={!name.trim() || !receiptFile}
+          disabled={!name.trim() || !receiptFile || isBusy}
         >
-          Enviar palpite com comprovante
+          {isBusy ? "Enviando..." : "Enviar palpite com comprovante"}
         </button>
         <p className="form-note">
           Regra: placar exato vale 3 pts, resultado certo vale 1 pt e marcador
           certo soma +1 pt.
         </p>
       </form>
+
+      {statusMessage && <p className="status-message">{statusMessage}</p>}
 
       <section className="participants-section" aria-label="Participantes">
         <div className="participants-title">
@@ -367,11 +701,15 @@ export function App() {
               <h2>Participantes</h2>
             </div>
           </div>
-          <strong>{participants.length}</strong>
+          <strong>{bets.length}</strong>
         </div>
 
         <div className="participant-list">
-          {participants.map((participant, index) => (
+          {bets.length === 0 && (
+            <p className="empty-state">Ninguém entrou ainda. O primeiro palpite puxa a resenha.</p>
+          )}
+
+          {bets.map((participant, index) => (
             <div className="participant-row" key={participant.id}>
               <div className="participant-main">
                 <div className="participant-name">
@@ -388,7 +726,7 @@ export function App() {
                   className={`payment-status ${
                     participant.confirmed ? "paid" : "pending"
                   }`}
-                  onClick={() => toggleConfirmed(participant.id)}
+                  onClick={() => toggleConfirmed(participant.id, participant.confirmed)}
                 >
                   {participant.confirmed ? "Validado" : "Comprovante"}
                 </button>
@@ -417,7 +755,7 @@ export function App() {
 
         <div className="admin-score">
           <Stepper
-            label="Brasil"
+            label={activePool.homeTeam}
             value={officialHome}
             tone="green"
             onDecrease={() => setOfficialHome((value) => clampScore(value - 1))}
@@ -425,7 +763,7 @@ export function App() {
           />
           <span className="score-x">x</span>
           <Stepper
-            label="Marrocos"
+            label={activePool.awayTeam}
             value={officialAway}
             tone="red"
             onDecrease={() => setOfficialAway((value) => clampScore(value - 1))}
@@ -447,11 +785,7 @@ export function App() {
           />
         </div>
 
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() => setResultPublished((value) => !value)}
-        >
+        <button type="button" className="secondary-button" onClick={toggleResultPublished}>
           {resultPublished ? "Ocultar ranking" : "Calcular ranking"}
         </button>
 
@@ -480,6 +814,14 @@ export function App() {
             )}
           </div>
         )}
+      </section>
+
+      <section className="cost-note" aria-label="Cuidados com Firebase">
+        <strong>{isFirebaseConfigured ? "Firebase conectado" : "Modo demo local"}</strong>
+        <p>
+          Guardrail de custo: uploads limitados a 2 MB no app e nas regras.
+          Antes de publicar com Storage, revisar Blaze, orçamento e uso no console.
+        </p>
       </section>
     </main>
   );

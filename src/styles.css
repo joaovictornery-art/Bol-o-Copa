@@ -173,6 +173,26 @@ input:disabled {
   box-shadow: 0 8px 18px rgba(39, 38, 29, 0.16);
 }
 
+.pool-badge {
+  display: grid;
+  width: min(31vw, 112px);
+  height: 72px;
+  place-items: center;
+  border-radius: 14px;
+  color: #fffdf4;
+  font-size: 1.7rem;
+  font-weight: 950;
+  box-shadow: 0 8px 18px rgba(39, 38, 29, 0.16);
+}
+
+.pool-badge.home {
+  background: linear-gradient(135deg, #087a2f, #0ebc52);
+}
+
+.pool-badge.away {
+  background: linear-gradient(135deg, #d71920, #a60f18);
+}
+
 .team strong {
   font-size: 1.14rem;
   line-height: 1;
@@ -219,6 +239,86 @@ input:disabled {
   color: #087a2f;
   font-size: 1.18rem;
   line-height: 1.1;
+}
+
+.pool-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+.section-heading.inline {
+  margin-bottom: 0;
+}
+
+.text-button {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(8, 122, 47, 0.1);
+  color: #087a2f;
+  font-size: 0.85rem;
+  font-weight: 900;
+  padding: 9px 13px;
+}
+
+.pool-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.pool-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.pool-tabs button {
+  flex: 0 0 auto;
+  border: 1px solid #e1d8c8;
+  border-radius: 999px;
+  background: #fffdf8;
+  color: #3d3f38;
+  font-size: 0.84rem;
+  font-weight: 850;
+  padding: 10px 13px;
+}
+
+.pool-tabs button.active {
+  border-color: #087a2f;
+  background: #087a2f;
+  color: #fffdf4;
+}
+
+.new-pool-form {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(8, 122, 47, 0.2);
+  border-radius: 18px;
+  background: rgba(255, 253, 248, 0.82);
+}
+
+.new-pool-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.new-pool-form span {
+  color: #69685c;
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .pix-section,
@@ -289,6 +389,30 @@ input:disabled {
 .pix-section p {
   margin-top: 10px;
   font-size: 0.9rem;
+}
+
+.link-copy {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  color: #5b5b51;
+  font-size: 0.86rem;
+}
+
+.link-copy svg {
+  color: #087a2f;
+}
+
+.link-copy button {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(8, 122, 47, 0.1);
+  color: #087a2f;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 8px 10px;
 }
 
 .score-row,
@@ -461,6 +585,11 @@ input:focus {
   color: #2b2b25;
 }
 
+.secondary-button.compact {
+  min-height: 48px;
+  margin-top: 0;
+}
+
 .primary-button:active,
 .secondary-button:active {
   transform: translateY(1px);
@@ -471,6 +600,21 @@ input:focus {
   margin-top: 12px;
   font-size: 0.88rem;
   text-align: center;
+}
+
+.status-message,
+.empty-state {
+  margin: 14px 0 0;
+  color: #5b5b51;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.status-message {
+  padding: 12px 14px;
+  border: 1px solid rgba(8, 122, 47, 0.18);
+  border-radius: 14px;
+  background: rgba(246, 253, 244, 0.84);
 }
 
 .participants-title {
@@ -607,6 +751,25 @@ input:focus {
   font-size: 0.95rem;
 }
 
+.cost-note {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(215, 25, 32, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 248, 229, 0.78);
+}
+
+.cost-note strong {
+  color: #087a2f;
+}
+
+.cost-note p {
+  margin: 6px 0 0;
+  color: #5b5b51;
+  font-size: 0.88rem;
+  line-height: 1.36;
+}
+
 @media (min-width: 760px) {
   body {
     padding: 28px 0;
@@ -614,5 +777,16 @@ input:focus {
 
   .app-shell {
     border-radius: 26px;
+  }
+}
+
+@media (max-width: 380px) {
+  .two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .table-head,
+  .participant-main {
+    grid-template-columns: minmax(0, 1fr) 70px 86px;
   }
 }
