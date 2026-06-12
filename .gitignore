@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .npm-cache/
+.firebase/
 .env
 .env.*
 !.env.example
