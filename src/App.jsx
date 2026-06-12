@@ -3,7 +3,6 @@ import {
   BadgeCheck,
   Check,
   Clipboard,
-  Link,
   Lock,
   Minus,
   Plus,
@@ -22,7 +21,7 @@ import {
   updatePoolResult,
 } from "./poolService";
 
-const PIX_KEY = "bolaochurras2026@pix.com";
+const PIX_KEY = "13241598713";
 const DEFAULT_POOL_ID = "brasil-marrocos-2026-06-13";
 
 const demoPools = [
@@ -37,19 +36,6 @@ const demoPools = [
     officialHome: 2,
     officialAway: 1,
     officialScorer: "Vini Jr.",
-    resultPublished: false,
-  },
-  {
-    id: "argentina-mexico-demo",
-    homeTeam: "Argentina",
-    awayTeam: "México",
-    matchLabel: "Domingo, 14 jun 2026 · 16:00 BRT",
-    phase: "Bolão teste",
-    entryFee: 5,
-    pixKey: PIX_KEY,
-    officialHome: 0,
-    officialAway: 0,
-    officialScorer: "",
     resultPublished: false,
   },
 ];
@@ -87,16 +73,6 @@ const demoBets = {
       away: 2,
       scorer: "Hakimi",
       confirmed: false,
-    },
-  ],
-  "argentina-mexico-demo": [
-    {
-      id: 11,
-      name: "Neymar Júnior",
-      home: 1,
-      away: 1,
-      scorer: "Messi",
-      confirmed: true,
     },
   ],
 };
@@ -251,7 +227,6 @@ export function App() {
   const [officialAway, setOfficialAway] = useState(1);
   const [officialScorer, setOfficialScorer] = useState("Vini Jr.");
   const [copied, setCopied] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
   const [showCreatePool, setShowCreatePool] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [isBusy, setIsBusy] = useState(false);
@@ -263,12 +238,8 @@ export function App() {
   const confirmedParticipants = bets.filter((participant) => participant.confirmed);
   const totalPot = bets.length * entryFee;
   const confirmedPot = confirmedParticipants.length * entryFee;
+  const paymentPixKey = PIX_KEY;
   const resultPublished = Boolean(activePool?.resultPublished);
-
-  const poolLink = useMemo(() => {
-    if (!poolId) return "";
-    return `${window.location.origin}${window.location.pathname}?bolao=${poolId}`;
-  }, [poolId]);
 
   const ranking = useMemo(() => {
     if (!resultPublished) return [];
@@ -341,6 +312,9 @@ export function App() {
   }
 
   async function handleCreatePool(pool) {
+    setStatusMessage("Somente o organizador pode criar novos bolões.");
+    return;
+
     if (!pool.homeTeam || !pool.awayTeam || !pool.pixKey) {
       setStatusMessage("Preencha os times e o Pix para criar o bolão.");
       return;
@@ -507,7 +481,8 @@ export function App() {
           <button
             type="button"
             className="text-button"
-            onClick={() => setShowCreatePool((value) => !value)}
+            disabled
+            title="Somente o organizador cria novos bolões"
           >
             {showCreatePool ? "Fechar" : "Novo"}
           </button>
@@ -569,16 +544,9 @@ export function App() {
           </div>
         </div>
         <div className="pix-copy">
-          <code>{activePool.pixKey}</code>
-          <button type="button" onClick={() => copyText(activePool.pixKey, setCopied)}>
+          <code>{paymentPixKey}</code>
+          <button type="button" onClick={() => copyText(paymentPixKey, setCopied)}>
             {copied ? "Copiado" : "Copiar"}
-          </button>
-        </div>
-        <div className="link-copy">
-          <Link size={16} />
-          <span>Link do bolão</span>
-          <button type="button" onClick={() => copyText(poolLink, setLinkCopied)}>
-            {linkCopied ? "Copiado" : "Copiar link"}
           </button>
         </div>
         <p>
@@ -621,7 +589,7 @@ export function App() {
           value={name}
           maxLength={30}
           onChange={(event) => setName(event.target.value)}
-          placeholder="Ex.: Neymar Júnior"
+          placeholder="Seu nome aqui"
         />
 
         <label className="field-label" htmlFor="goal-scorer">
@@ -634,7 +602,7 @@ export function App() {
             value={scorer}
             maxLength={30}
             onChange={(event) => setScorer(event.target.value)}
-            placeholder={`Ex.: jogador do ${activePool.homeTeam}`}
+            placeholder="Ex.: Neymar Júnior"
           />
         </div>
 

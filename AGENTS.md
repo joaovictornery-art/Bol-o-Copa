@@ -15,6 +15,12 @@ When implementing from a selected generated mock, treat that image as the source
 - Bet submission does not require receipt upload.
 - Participants send Pix receipts through WhatsApp outside the app.
 - The organizer manually marks bets as paid/validated in the app.
+- Only the organizer creates pools, so public "New pool" creation should stay disabled while there is no profile/auth system.
+- Public pool creation must also be blocked in the submit handler, not only hidden or visually disabled.
+- The initial/demo pool list should not include Argentina vs Mexico because it flashes before Firebase finishes loading.
+- The Pix key shown for payment/copying is `13241598713`.
+- The participant payment section should not show a "Link do bolao" copy control.
+- The participant name placeholder should read "Seu nome aqui"; the bonus scorer placeholder should use "Ex.: Neymar Junior".
 - Optional goal scorer predictions add a scoring bonus.
 - The app should support multiple pools/games, each with its own link, bets, payment status, and result.
 - Firebase work must be cost-cautious: call out Blaze/billing risk, budget alerts not being hard caps, security rules, usage monitoring, and upload limits if uploads return later.

@@ -391,30 +391,6 @@ input:disabled {
   font-size: 0.9rem;
 }
 
-.link-copy {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 8px;
-  align-items: center;
-  margin-top: 10px;
-  color: #5b5b51;
-  font-size: 0.86rem;
-}
-
-.link-copy svg {
-  color: #087a2f;
-}
-
-.link-copy button {
-  border: 0;
-  border-radius: 999px;
-  background: rgba(8, 122, 47, 0.1);
-  color: #087a2f;
-  font-size: 0.78rem;
-  font-weight: 900;
-  padding: 8px 10px;
-}
-
 .score-row,
 .admin-score {
   justify-content: space-between;
